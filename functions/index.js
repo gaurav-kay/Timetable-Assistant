@@ -9,7 +9,7 @@ const functions = require('firebase-functions')
 //  response.send("Hello from Firebase!");
 // });
 
-const datejs = require('./Datejs/core')
+// const datejs = require('./Datejs/core')
 const {
       dialogflow,
       SimpleResponse,
@@ -109,7 +109,7 @@ function getTimetable(day) {
             case "Fri":
                   timetable = {
                         day: "Friday",
-                        periods: ["Math", ""]
+                        periods: ["Math", "Haha fml"]
                   }
                   break
 
