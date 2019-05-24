@@ -13,66 +13,103 @@ const datejs = require('./Datejs/core')
 const {
       dialogflow,
       SimpleResponse,
-      Carousel,
-      Image
+      Table,
+      Image,
+      Button
 } = require('actions-on-google')
 const app = dialogflow({ debug: true })
 
 app.intent('Default Welcome Intent', (conv) => {
       var now = Date()
-      var data = now
+      var day = now.split(' ')[0].toLowerCase()
 
-      var timetable = getTimetable()
+      var timetable = getTimetable(day)
 
       conv.close(new SimpleResponse({
-            text: `Hello, today's date is ${data}`,
-            speech: `Date is ${data}` 
+            text: "Today's time table is",
+            speech: `You have the these classes on ${timetable.day}`
+            // TODO text/speech should tell books to be swapped
       }))
-
+      conv.close(new Table({
+            title: `${timetable.day}'s classes`,
+            subtitle: `Classes you have today`,
+            image: new Image({
+                  url: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5a/Ramaiah_Institutions_Logo.png/220px-Ramaiah_Institutions_Logo.png',
+                  alt: 'Test alt text and image'
+            }),
+            columns: [
+                  {
+                        header: 'Subject',
+                  },
+                  {
+                        header: 'Time'
+                  }
+            ],
+            rows: getRows(timetable),
+            buttons: new Button({
+                  // TODO: add section changing option
+                  title: 'Change section',
+                  url: 'https://www.google.com' // test url
+            })
+      }))
 })
 
-function getTimetable(date) {
-      var timetable
-      var now = Date()
-      var day = now.split(' ')[0].toLowerCase()
+function getRows(timetable) {
+      var rowElements
+      
+      // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
+      timetable.periods.forEach((period, hourIndex) => {
+            rowElements.push({
+                  cells: [period, timetable.periodTimes[hourIndex]],
+                  dividerAfter: false
+            })
+      })
+
+      // Break hours indication by adding rulers
+      rowElements[1].dividerAfter = true
+      rowElements[3].dividerAfter = true
+
+      return rowElements
+}
+
+function getTimetable(day) {
+      var timetable = {
+            periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"]
+      }
+
       switch (day) {
             case "Mon":
                   timetable = {
-                        "day": "Monday",
-                        "period1": "Monday Math",
-                        "period2": "Monday Data Structures"
+                        day: "Monday",
+                        periods: ["Math", "Data Structures"]
                   }
                   break
       
             case "Tue":
                   timetable = {
-                        "day": "Tuesday",
-                        "period1": "Tuesday Math",
-                        "period2": "Tuesday Data Structures"
+                        day: "Tuesday",
+                        periods: ["Natural language processing", "Database Management"]
                   }
                   break
             
             case "Wed":
                   timetable = {
-                        "day": "Wednesday",
-                        "period1": "Wednesday Math",
-                        "period2": "Wednesday Data Structures"
+                        day: "Wednesday",
+                        periods: ["Math", "Image Processing"]
                   }
                   break
 
             case "Thu":
                   timetable = {
-                        "day": "Thrurday",
-                        "period1": "Thrurday Math",
-                        "period2": "Thrurday Data Structures"
+                        day: "Thrurday",
+                        periods: ["Data Structures", "FAFL"]
                   }
                   break
 
             case "Fri":
                   timetable = {
-                        "day": "Friday",
-                        "period1": "Friday Math",
-                        "period2": "Friday Data Structures"
+                        day: "Friday",
+                        periods: ["Math", ""]
                   }
                   break
 
