@@ -27,7 +27,7 @@ app.intent('Default Welcome Intent', (conv) => {
 
       conv.close(new SimpleResponse({
             text: "Today's time table is",
-            speech: `You have the these classes on ${timetable.day}`
+            speech: `You have these classes on ${timetable.day}`
             // TODO text/speech should tell books to be swapped
       }))
       conv.close(new Table({
@@ -55,7 +55,7 @@ app.intent('Default Welcome Intent', (conv) => {
 })
 
 function getRows(timetable) {
-      var rowElements
+      var rowElements = []
       
       // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
       timetable.periods.forEach((period, hourIndex) => {
@@ -66,48 +66,56 @@ function getRows(timetable) {
       })
 
       // Break hours indication by adding rulers
-      rowElements[1].dividerAfter = true
-      rowElements[3].dividerAfter = true
+     
+      if(rowElements.length >= 1 && rowElements.length < 4) {
+            rowElements[1].dividerAfter = true
+      } else if (rowElements.length >= 4) {
+            rowElements[1].dividerAfter = true
+            rowElements[3].dividerAfter = true
+      }
 
       return rowElements
 }
 
 function getTimetable(day) {
-      var timetable = {
-            periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"]
-      }
+      var timetable
 
       switch (day) {
-            case "Mon":
+            case "mon":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"],
                         day: "Monday",
                         periods: ["Math", "Data Structures"]
                   }
                   break
       
-            case "Tue":
+            case "tue":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"],
                         day: "Tuesday",
                         periods: ["Natural language processing", "Database Management"]
                   }
                   break
             
-            case "Wed":
+            case "wed":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"],
                         day: "Wednesday",
                         periods: ["Math", "Image Processing"]
                   }
                   break
 
-            case "Thu":
+            case "thu":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"],
                         day: "Thrurday",
                         periods: ["Data Structures", "FAFL"]
                   }
                   break
 
-            case "Fri":
+            case "fri":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:30"],
                         day: "Friday",
                         periods: ["Math", "Haha fml"]
                   }
