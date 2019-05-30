@@ -21,17 +21,19 @@ const app = dialogflow({ debug: true })
 
 app.intent('Default Welcome Intent', (conv) => {
       var hongKong = new Date()
-      var india = hongKong
-      india.setHours(hongKong.getHours() - 2, hongKong.getMinutes() - 30)
-      var day = india.split(' ')[0].toLowerCase()
+      var currentIndiaTime = hongKong
+      currentIndiaTime.setHours(hongKong.getHours() - 2, hongKong.getMinutes() - 30)
+      currentIndiaTime = currentIndiaTime.toString()
+      var day = currentIndiaTime.split(' ')[0].toLowerCase()
 
-      var holidayStatus = checkHoliday(india)
+      var holidayStatus = checkHoliday(currentIndiaTime)
       if(!holidayStatus.isHoliday) {
             var timetable = getTimetable(day)
 
             conv.close(new SimpleResponse({
                   text: "Today's time table is",
-                  speech: `You have these classes on ${timetable.day}`
+                  // speech: `You have these classes on ${timetable.day}`
+                  speech: getSpeech(timetable, currentIndiaTime)
                   // TODO text/speech should tell books to be swapped
             }))
             conv.close(new Table({
@@ -65,11 +67,36 @@ app.intent('Default Welcome Intent', (conv) => {
       }
 })
 
+function getSpeech(todayTimetable, todayDate) {
+      var prevDate = todayDate
+      prevDate.setDate(todayDate.getDate() - 1)
+      
+      var prevTimetable = getTimetable(prevDate.toString().split(' ')[0].toLowerCase())
+
+      // https://stackoverflow.com/questions/1723168/what-is-the-fastest-or-most-elegant-way-to-compute-a-set-difference-using-javasc
+      var removeBooks = prevTimetable.periods.filter(period => !todayTimetable.periods.includes(period))
+      var addBooks = todayTimetable.periods.filter(period => !prevTimetable.periods.includes(period))
+
+      if(removeBooks.length === 0) {
+            return `Add ${addBooks.join(", ")}`
+      } else if(addBooks.length === 0) {
+            return `Remove ${removeBooks.join(", ")}`
+      } else {
+            return `Remove ${removeBooks.join(", ")} and add ${addBooks.join(", ")}`
+      }
+}
+
 function checkHoliday(time) {
-      if(time.split(' ')[0].toLowerCase() == 'sat' || 'sun') {
+      if(time.split(' ')[0].toLowerCase() === 'sat' || time.split(' ')[0].toLowerCase() === 'sun') {
             return {
                   isHoliday: true,
                   reason: "Weekend"
+            }
+      } else {
+            // TODO: Check public holidays
+            return {
+                  isHoliday: false,
+                  reason: ""
             }
       }
 }
@@ -98,12 +125,13 @@ function getRows(timetable) {
 }
 
 function getTimetable(day) {
-      var timetable
+      var timetable = new Object()
       timetable["periodTimes"] = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
 
       switch (day) {
             case "mon":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"],
                         day: "Monday",
                         periods: ["Math", "Data Structures", "Natural Language Processing", "Database Management", "Image Processing"]
                   }
@@ -111,6 +139,7 @@ function getTimetable(day) {
       
             case "tue":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"],
                         day: "Tuesday",
                         periods: ["Natural language processing", "Database Management", "Math", "Data Structures", "DAA Lab", "DAA Lab"]
                   }
@@ -118,6 +147,7 @@ function getTimetable(day) {
             
             case "wed":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"],
                         day: "Wednesday",
                         periods: ["Math", "Image Processing", "Data Structures", "FAFL", "Natural language processing", "Database Management", "Math"]
                   }
@@ -125,6 +155,7 @@ function getTimetable(day) {
 
             case "thu":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"],
                         day: "Thrurday",
                         periods: ["Data Structures", "FAFL"]
                   }
@@ -132,6 +163,7 @@ function getTimetable(day) {
 
             case "fri":
                   timetable = {
+                        periodTimes: ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"],
                         day: "Friday",
                         periods: ["Math", "Haha fml"]
                   }
