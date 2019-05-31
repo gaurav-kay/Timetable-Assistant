@@ -68,8 +68,9 @@ app.intent('Default Welcome Intent', (conv) => {
 })
 
 function getSpeech(todayTimetable, todayDate) {
-      var prevDate = todayDate
-      prevDate.setDate(todayDate.getDate() - 1)
+      var x = new Date(todayDate)
+      var prevDate = new Date(x)
+      prevDate.setDate(x.getDate() - 1)
       
       var prevTimetable = getTimetable(prevDate.toString().split(' ')[0].toLowerCase())
 
