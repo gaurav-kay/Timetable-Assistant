@@ -31,6 +31,7 @@ app.intent('Default Welcome Intent', (conv) => {
 })
 
 function respondWithTimetable(conv) {
+      const periodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
       const payload = conv.user.profile.payload
 
       db.collection('users').doc(payload.sub).get()
@@ -53,7 +54,7 @@ function respondWithTimetable(conv) {
 
             conv.close(new SimpleResponse({
                   text: "Today's time table is",
-                  speech: getSpeech(timetable, currentIndiaTime)
+                  speech: "test speech, update getSpeech()"  // getSpeech(timetable, currentIndiaTime)
             }))
             conv.close(new Table({
                   title: `${docData[day].day}'s classes`,
@@ -78,9 +79,9 @@ function respondWithTimetable(conv) {
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
-                  timetable.periods.forEach((period, hourIndex) => {
+                  timetable.forEach((period, hourIndex) => {
                         rowElements.push({
-                              cells: [period, timetable.periodTimes[hourIndex]],
+                              cells: [period, periodTimes[hourIndex]],
                               dividerAfter: false
                         })
                   })
