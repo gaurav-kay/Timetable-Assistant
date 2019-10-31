@@ -1,2 +1,3 @@
 node_modules/
-Datejs/
+./config.js
+./test.js
