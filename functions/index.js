@@ -3,7 +3,6 @@ const {
       SimpleResponse,
       Table,
       Image,
-      Button,
       SignIn,
       Suggestions
 } = require('actions-on-google')
@@ -122,15 +121,52 @@ function respondWithTimetable(conv) {
       }
 }
 
-app.intent('Sign In Confirmation', async (conv, params, signin) => {
+app.intent('Sign In Confirmation', (conv, params, signin) => {
       if (signin.status !== 'OK') {
             return conv.close("Please try again")
       }
-      const { email } = conv.user;
+      conv.data.payload = conv.user.profile.payload
+      conv.data.userData = {}
+
+      conv.ask(`Great! Thanks for signing in, to complete the first-time set up process, please tell us your branch`)
+      return conv.ask(new Suggestions['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM', 'BT', 'CH', 'CV'])
+})
+
+app.intent('branch', (conv, { branch }) => {
+      // do google sign in at the end
+      conv.data.userData.branch = branch
+
+      conv.ask(`Great, now select your semester`)
+      return conv.ask(new Suggestions(["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]))
+})
+
+app.intent('semester', (conv, { ordinal }) => {
+      conv.data.userData.semester = ordinal
+
+      conv.ask(`Now, select your class`)
+      return conv.ask(new Suggestions(['A', 'B', 'C', 'D']))
+})
+
+app.intent('section', (conv, { letter }) => {
+      conv.data.userData.section = letter
+
+      db.collection('users').doc(conv.data.payload.sub).set(
+            {
+                  "branch": conv.data.userData.branch,
+                  "semester": conv.data.userData.semester,
+                  "id": conv.data.payload.sub,
+                  "payload": conv.data.payload,
+                  "class": `${conv.data.userData.semester} ${conv.data.userData.section}`
+            }
+      )
+            .then(() => {
+                  conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
+                  respondWithTimetable(conv)
+            })
 })
 
 exports.fulfillmentHKG = functions
-      .region('asia-east2')
+      .region('asia-east2')  // change to us-central1 (location of db)
       .https.onRequest(app)
 
 // get class from suggestion chips
