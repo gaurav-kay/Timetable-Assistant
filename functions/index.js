@@ -1,3 +1,4 @@
+'use strict'
 const {
       dialogflow,
       SimpleResponse,
@@ -11,21 +12,32 @@ const functions = require('firebase-functions')
 const firebase = require('firebase/app')
 const config = require('./config')
 
-const firebaseConfig = config.default.firebaseConfig
+const firebaseConfig = {
+      apiKey: "AIzaSyC7TDSiX_JQV7XwXe5kNSizASfdKehkuE4",
+      authDomain: "timetable-7b63e.firebaseapp.com",
+      databaseURL: "https://timetable-7b63e.firebaseio.com",
+      projectId: "timetable-7b63e",
+      storageBucket: "timetable-7b63e.appspot.com",
+      messagingSenderId: "848995382512",
+      appId: "1:848995382512:web:cbf056ea923c505b"
+}
 firebase.initializeApp(firebaseConfig)
 admin.initializeApp(functions.config().firebase)
 var db = admin.firestore()
 
 const app = dialogflow({
       debug: true,
-      clientId: config.default.clientId
+      clientId: "848995382512-55et28cu063uh7g3720a1tak0j6i5q54.apps.googleusercontent.com"
 })
 
 app.intent('Default Welcome Intent', (conv) => {
       const payload = conv.user.profile.payload
-      if (!payload.sub) {
-            return conv.ask(new SignIn('To get your Timetable'))
+      console.log(`TAG def welcome ${conv.user.profile.payload} ${conv.user}`)
+      if (typeof payload === 'undefined') {
+            console.log('TAG called sign in')
+            conv.ask(new SignIn('To get your Timetable'))
       } else {
+            console.log('TAG respond w time')
             respondWithTimetable(conv)
       }
 })
@@ -39,15 +51,26 @@ function respondWithTimetable(conv) {
                   db.collection('timetables').doc(userDocSnapshot.data().class).get()
                         .then((timetableDocSnapshot) => {
                               sendResponse(timetableDocSnapshot.data())
-                        })
 
+                              return null
+                        })
+                        .catch((err) => {
+
+                              throw err
+                        })
+                  return null
+            })
+            .catch((err) => {
+                  throw err
             })
 
-
       function sendResponse(docData) {
-            let hongKong = new Date()
-            let currentIndiaTime = hongKong
-            currentIndiaTime = currentIndiaTime.setHours(hongKong.getHours() - 2, hongKong.getMinutes() - 30).toString()
+            // let hongKong = new Date()
+            // let currentIndiaTime = hongKong
+            let usTime = new Date()
+            let currentIndiaTime = usTime
+            // currentIndiaTime = currentIndiaTime.setHours(hongKong.getHours() - 2, hongKong.getMinutes() - 30).toString()
+            currentIndiaTime = currentIndiaTime.setTime(usTime.getHours() - 10, usTime.getMinutes() - 30).toString()
             let day = currentIndiaTime.split(' ')[0].toLowerCase()
 
             const timetable = docData[day].timetable  // docdata[day] must contain timetable and day in full form
@@ -122,7 +145,8 @@ function respondWithTimetable(conv) {
       }
 }
 
-app.intent('Sign In Confirmation', (conv, params, signin) => {
+app.intent('ask_for_sign_in_confirmation', async (conv, params, signin) => {
+      console.log(`TAG hit sign in ${conv.user.profile.payload} ${conv.user} ${params} ${signin.status} ${conv.user.profile.payload}`)
       if (signin.status !== 'OK') {
             return conv.close("Please try again")
       }
@@ -130,7 +154,7 @@ app.intent('Sign In Confirmation', (conv, params, signin) => {
       conv.data.userData = {}
 
       conv.ask(`Great! Thanks for signing in, to complete the first-time set up process, please tell us your branch`)
-      return conv.ask(new Suggestions['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM', 'BT', 'CH', 'CV'])
+      return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM', 'BT', 'CH', 'CV']))
 })
 
 app.intent('branch', (conv, { branch }) => {
@@ -163,12 +187,14 @@ app.intent('section', (conv, { letter }) => {
             .then(() => {
                   conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
                   respondWithTimetable(conv)
+                  return null
+            })
+            .catch((err) => {
+                  throw err
             })
 })
 
-exports.fulfillmentHKG = functions
-      .region('asia-east2')  // change to us-central1 (location of db)
-      .https.onRequest(app)
+exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db)
 
 // get class from suggestion chips
 
