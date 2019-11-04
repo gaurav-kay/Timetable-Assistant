@@ -12,22 +12,14 @@ const functions = require('firebase-functions')
 const firebase = require('firebase/app')
 const config = require('./config')
 
-const firebaseConfig = {
-      apiKey: "AIzaSyC7TDSiX_JQV7XwXe5kNSizASfdKehkuE4",
-      authDomain: "timetable-7b63e.firebaseapp.com",
-      databaseURL: "https://timetable-7b63e.firebaseio.com",
-      projectId: "timetable-7b63e",
-      storageBucket: "timetable-7b63e.appspot.com",
-      messagingSenderId: "848995382512",
-      appId: "1:848995382512:web:cbf056ea923c505b"
-}
+const firebaseConfig = config.default.firebaseConfig
 firebase.initializeApp(firebaseConfig)
 admin.initializeApp(functions.config().firebase)
 var db = admin.firestore()
 
 const app = dialogflow({
       debug: true,
-      clientId: "848995382512-55et28cu063uh7g3720a1tak0j6i5q54.apps.googleusercontent.com"
+      clientId: config.default.clientId
 })
 
 app.intent('Default Welcome Intent', (conv) => {
@@ -35,36 +27,33 @@ app.intent('Default Welcome Intent', (conv) => {
       console.log(`TAG def welcome ${conv.user.profile.payload} ${conv.user}`)
       if (typeof payload === 'undefined') {
             console.log('TAG called sign in')
-            conv.ask(new SignIn('To get your Timetable'))
+            return conv.ask(new SignIn('To get your Timetable'))
       } else {
             console.log('TAG respond w time')
-            respondWithTimetable(conv)
+            return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
       }
 })
 
-function respondWithTimetable(conv) {
+function respondWithTimetable(conv, resolve) {
       const periodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
       const payload = conv.user.profile.payload
 
       db.collection('users').doc(payload.sub).get()
             .then((userDocSnapshot) => {
-                  db.collection('timetables').doc(userDocSnapshot.data().class).get()
-                        .then((timetableDocSnapshot) => {
-                              sendResponse(timetableDocSnapshot.data())
-
-                              return null
-                        })
-                        .catch((err) => {
-
-                              throw err
-                        })
+                  return db.collection('timetables').doc(userDocSnapshot.data().class).get()
+            })
+            .then((timetableDocSnapshot) => {
+                  sendResponse(timetableDocSnapshot.data(), conv)
+                  console.log('TAG exit send Response')
+                  resolve()
+                  console.log('TAG resolved')
                   return null
             })
             .catch((err) => {
                   throw err
             })
 
-      function sendResponse(docData) {
+      function sendResponse(docData, conv) {
             // let hongKong = new Date()
             // let currentIndiaTime = hongKong
             let usTime = new Date()
@@ -73,14 +62,42 @@ function respondWithTimetable(conv) {
             currentIndiaTime = currentIndiaTime.setTime(usTime.getHours() - 10, usTime.getMinutes() - 30).toString()
             let day = currentIndiaTime.split(' ')[0].toLowerCase()
 
-            const timetable = docData[day].timetable  // docdata[day] must contain timetable and day in full form
+            console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
+            var timetable, fullDay
+            switch (day) {
+                  case "mon": timetable = docData.mon.timetable
+                        fullDay = docData.mon.day
+                        break
+                  case "tue": timetable = docData.tue.timetable
+                        fullDay = docData.tue.day
+                        break
+                  case "wed": timetable = docData.wed.timetable
+                        fullDay = docData.wed.day
+                        break
+                  case "thu": timetable = docData.thu.timetable
+                        fullDay = docData.thu.day
+                        break
+                  case "fri": timetable = docData.fri.timetable
+                        fullDay = docData.fri.day
+                        break
+                  case "sat": timetable = docData.thu.timetable
+                        fullDay = docData.thu.day  // testing onlyyyyy
+                        break
+                  case "sun": timetable = docData.sun.timetable
+                        fullDay = docData.sun.day
+                        break
+                  default: timetable = docData.mon.timetable
+                        fullDay = docData.mon.day
+            }
+
+            console.log(`TAG ${timetable}, ${fullDay}`)
             conv.close(new SimpleResponse({
                   text: "Today's time table is",
                   speech: "test speech, update getSpeech()"  // getSpeech(timetable, currentIndiaTime)
             }))
-            conv.close(new Table({
-                  title: `${docData[day].day}'s classes`,
+            return conv.close(new Table({
+                  title: `${fullDay}'s classes`,
                   subtitle: `Classes you have today`,
                   image: new Image({
                         url: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5a/Ramaiah_Institutions_Logo.png/220px-Ramaiah_Institutions_Logo.png',
@@ -96,9 +113,10 @@ function respondWithTimetable(conv) {
                   ],
                   rows: getRows(timetable),
             }))
-            conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
+            // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
             function getRows(timetable) {
+                  console.log(`TAG called getRows`)
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
@@ -117,6 +135,7 @@ function respondWithTimetable(conv) {
                         rowElements[3].dividerAfter = true
                   }
 
+                  console.log("TAG exited getRows")
                   return rowElements
             }
             // TODO: update getspeech
@@ -145,7 +164,7 @@ function respondWithTimetable(conv) {
       }
 }
 
-app.intent('ask_for_sign_in_confirmation', async (conv, params, signin) => {
+app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
       console.log(`TAG hit sign in ${conv.user.profile.payload} ${conv.user} ${params} ${signin.status} ${conv.user.profile.payload}`)
       if (signin.status !== 'OK') {
             return conv.close("Please try again")
@@ -154,7 +173,7 @@ app.intent('ask_for_sign_in_confirmation', async (conv, params, signin) => {
       conv.data.userData = {}
 
       conv.ask(`Great! Thanks for signing in, to complete the first-time set up process, please tell us your branch`)
-      return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM', 'BT', 'CH', 'CV']))
+      return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM']))
 })
 
 app.intent('branch', (conv, { branch }) => {
@@ -169,33 +188,37 @@ app.intent('semester', (conv, { ordinal }) => {
       conv.data.userData.semester = ordinal
 
       conv.ask(`Now, select your class`)
-      return conv.ask(new Suggestions(['A', 'B', 'C', 'D']))
+      return conv.ask(new Suggestions(["A section", "B section", "C section", "D section", "E section"]))
 })
 
-app.intent('section', (conv, { letter }) => {
-      conv.data.userData.section = letter
+app.intent('section', (conv, { any }) => {
+      conv.data.userData.section = any
 
-      db.collection('users').doc(conv.data.payload.sub).set(
-            {
-                  "branch": conv.data.userData.branch,
-                  "semester": conv.data.userData.semester,
-                  "id": conv.data.payload.sub,
-                  "payload": conv.data.payload,
-                  "class": `${conv.data.userData.semester} ${conv.data.userData.section}`
-            }
-      )
-            .then(() => {
-                  conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
-                  respondWithTimetable(conv)
-                  return null
-            })
-            .catch((err) => {
-                  throw err
-            })
+      console.log(`TAG ${conv.data.userData.branch} ${any} ${conv.data.userData.semester}, ${conv.data.payload.sub} ${conv.data.userData.semester} ${conv.data.userData.section} ${conv.data.payload}`)
+      return new Promise((resolve, reject) => {
+            db.collection('users').doc(conv.data.payload.sub).set(
+                  {
+                        "branch": conv.data.userData.branch,
+                        "semester": conv.data.userData.semester,
+                        "id": conv.data.payload.sub,
+                        "class": `${conv.data.userData.semester} ${conv.data.userData.section}`,
+                        "payload": conv.data.payload
+                  }
+            )
+                  .then(() => {
+                        conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
+                        console.log("TAG boutta respod")
+                        return respondWithTimetable(conv, resolve)
+                  })
+                  .catch((err) => {
+                        throw err
+                  })
+      })
 })
 
-exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db)
-
+exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
+exports.fulfillmentHKG = functions
+      .region('asia-east2').https.onRequest(app)
 // get class from suggestion chips
 
 // o/p from suggestion chip is intent text
