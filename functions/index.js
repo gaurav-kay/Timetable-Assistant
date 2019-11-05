@@ -24,12 +24,9 @@ const app = dialogflow({
 
 app.intent('Default Welcome Intent', (conv) => {
       const payload = conv.user.profile.payload
-      console.log(`TAG def welcome ${conv.user.profile.payload} ${conv.user}`)
       if (typeof payload === 'undefined') {
-            console.log('TAG called sign in')
             return conv.ask(new SignIn('To get your Timetable'))
       } else {
-            console.log('TAG respond w time')
             return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
       }
 })
@@ -54,13 +51,8 @@ function respondWithTimetable(conv, resolve) {
             })
 
       function sendResponse(docData, conv) {
-            // let hongKong = new Date()
-            // let currentIndiaTime = hongKong
-            let usTime = new Date()
-            let currentIndiaTime = usTime
-            // currentIndiaTime = currentIndiaTime.setHours(hongKong.getHours() - 2, hongKong.getMinutes() - 30).toString()
-            currentIndiaTime = currentIndiaTime.setTime(usTime.getHours() - 10, usTime.getMinutes() - 30).toString()
-            let day = currentIndiaTime.split(' ')[0].toLowerCase()
+            let currentIndiaTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+            let day = new Date(currentIndiaTime).toString().split(' ')[0].toLowerCase()
 
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
@@ -81,17 +73,18 @@ function respondWithTimetable(conv, resolve) {
                   case "fri": timetable = docData.fri.timetable
                         fullDay = docData.fri.day
                         break
-                  case "sat": timetable = docData.thu.timetable
+                  case "sat": timetable = docData.sat.timetable
                         fullDay = docData.thu.day  // testing onlyyyyy
                         break
                   case "sun": timetable = docData.sun.timetable
                         fullDay = docData.sun.day
                         break
-                  default: timetable = docData.mon.timetable
+                  default:
+                        console.log('default')
+                        timetable = docData.mon.timetable
                         fullDay = docData.mon.day
             }
 
-            console.log(`TAG ${timetable}, ${fullDay}`)
             conv.close(new SimpleResponse({
                   text: "Today's time table is",
                   speech: "test speech, update getSpeech()"  // getSpeech(timetable, currentIndiaTime)
@@ -116,7 +109,6 @@ function respondWithTimetable(conv, resolve) {
             // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
             function getRows(timetable) {
-                  console.log(`TAG called getRows`)
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
@@ -135,7 +127,6 @@ function respondWithTimetable(conv, resolve) {
                         rowElements[3].dividerAfter = true
                   }
 
-                  console.log("TAG exited getRows")
                   return rowElements
             }
             // TODO: update getspeech
@@ -165,7 +156,6 @@ function respondWithTimetable(conv, resolve) {
 }
 
 app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
-      console.log(`TAG hit sign in ${conv.user.profile.payload} ${conv.user} ${params} ${signin.status} ${conv.user.profile.payload}`)
       if (signin.status !== 'OK') {
             return conv.close("Please try again")
       }
@@ -180,7 +170,7 @@ app.intent('branch', (conv, { branch }) => {
       // do google sign in at the end
       conv.data.userData.branch = branch
 
-      conv.ask(`Great, now select your semester`)
+      conv.ask(`Now, select your semester`)
       return conv.ask(new Suggestions(["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]))
 })
 
@@ -194,26 +184,24 @@ app.intent('semester', (conv, { ordinal }) => {
 app.intent('section', (conv, { any }) => {
       conv.data.userData.section = any
 
-      console.log(`TAG ${conv.data.userData.branch} ${any} ${conv.data.userData.semester}, ${conv.data.payload.sub} ${conv.data.userData.semester} ${conv.data.userData.section} ${conv.data.payload}`)
       return new Promise((resolve, reject) => {
             db.collection('users').doc(conv.data.payload.sub).set(
                   {
                         "branch": conv.data.userData.branch,
                         "semester": conv.data.userData.semester,
                         "id": conv.data.payload.sub,
-                        "class": `${conv.data.userData.semester} ${conv.data.userData.section}`,
+                        "class": `${conv.data.userData.branch} ${conv.data.userData.semester} ${conv.data.userData.section}`,
                         "payload": conv.data.payload
                   }
             )
                   .then(() => {
                         conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
-                        console.log("TAG boutta respod")
                         return respondWithTimetable(conv, resolve)
                   })
                   .catch((err) => {
                         throw err
                   })
-      })
+      })  // had to return a promise!
 })
 
 exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
