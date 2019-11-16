@@ -109,6 +109,7 @@ function respondWithTimetable(conv, resolve) {
             // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
             function getRows(timetable) {
+                  // TODO: get period times from db too
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
