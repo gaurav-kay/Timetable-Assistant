@@ -27,12 +27,21 @@ app.intent('Default Welcome Intent', (conv) => {
       if (typeof payload === 'undefined') {
             return conv.ask(new SignIn('To get your Timetable'))
       } else {
-            return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
+            // return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
+            return await respondWithTimetable(conv)
       }
 })
 
+async function respondWithTimetable(conv) {
+      const payload = conv.user.profile.payload
+      var userDocSnapshot = await db.collection('users').doc(payload.sub).get()
+      var timetableDocSnapshot = await db.collection('timetables').doc(userDocSnapshot.data().class).get()
+
+      sendResponse(timetableDocSnapshot.data(), conv)
+      return Promise.resolve()
+}
+
 function respondWithTimetable(conv, resolve) {
-      const periodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
       const payload = conv.user.profile.payload
 
       db.collection('users').doc(payload.sub).get()
@@ -57,27 +66,34 @@ function respondWithTimetable(conv, resolve) {
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
             var timetable, fullDay
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
             switch (day) {
                   case "mon": timetable = docData.mon.timetable
-                        fullDay = docData.mon.day
+                        const periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "tue": timetable = docData.tue.timetable
-                        fullDay = docData.tue.day
+                        const periodTimes = "periodTimes" in docData.tue ? docData.tue.periodTimes : defaultPeriodTimes
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "wed": timetable = docData.wed.timetable
-                        fullDay = docData.wed.day
+                        const periodTimes = "periodTimes" in docData.wed ? docData.wed.periodTimes : defaultPeriodTimes
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "thu": timetable = docData.thu.timetable
-                        fullDay = docData.thu.day
+                        const periodTimes = "periodTimes" in docData.thu ? docData.thu.periodTimes : defaultPeriodTimes
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "fri": timetable = docData.fri.timetable
-                        fullDay = docData.fri.day
+                        const periodTimes = "periodTimes" in docData.fri ? docData.fri.periodTimes : defaultPeriodTimes
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "sat": timetable = docData.sat.timetable
-                        fullDay = docData.thu.day  // testing onlyyyyy
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]  // testing onlyyyyy
                         break
                   case "sun": timetable = docData.sun.timetable
-                        fullDay = docData.sun.day
+                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   default:
                         console.log('default')
@@ -208,6 +224,18 @@ app.intent('section', (conv, { any }) => {
 exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
 exports.fulfillmentHKG = functions
       .region('asia-east2').https.onRequest(app)
+
+
+async function f() {
+      var x = await db.collection('users').get()
+      return x
+}
+
+function d() {
+      return "hi"
+}
+
+exports.tests = functions.https.onRequest(d)
 // get class from suggestion chips
 
 // o/p from suggestion chip is intent text
