@@ -1,4 +1,5 @@
 'use strict'
+
 const {
       dialogflow,
       SimpleResponse,
@@ -25,7 +26,12 @@ const app = dialogflow({
 app.intent('Default Welcome Intent', (conv) => {
       const payload = conv.user.profile.payload
       if (typeof payload === 'undefined') {
-            return conv.ask(new SignIn('To get your Timetable'))
+            conv.ask('Welcome, Since this is your first time, Please complete this 1 time sign in and setup')
+
+            conv.data.userData = {}
+            conv.ask('Select your branch')
+
+            return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM']))
       } else {
             return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
       }
@@ -165,23 +171,11 @@ function respondWithTimetable(conv, resolve) {
       }
 }
 
-app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
-      if (signin.status !== 'OK') {
-            return conv.close("Please try again")
-      }
-      conv.data.payload = conv.user.profile.payload
-      conv.data.userData = {}
-
-      conv.ask(`Great! Thanks for signing in, to complete the first-time set up process, please tell us your branch`)
-      return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM']))
-})
-
 app.intent('branch', (conv, { branch }) => {
-      // do google sign in at the end
       conv.data.userData.branch = branch
 
       conv.ask(`Now, select your semester`)
-      return conv.ask(new Suggestions(["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]))
+      return conv.ask(new Suggestions(["1st", "3rd", "5th", "7th"]))
 })
 
 app.intent('semester', (conv, { ordinal }) => {
@@ -194,6 +188,16 @@ app.intent('semester', (conv, { ordinal }) => {
 app.intent('section', (conv, { any }) => {
       conv.data.userData.section = any
 
+      conv.ask('Thanks! Finally Sign in to use College Timetable')
+      return conv.ask(new SignIn('To use College Timetable'))
+})
+
+app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
+      if (signin.status !== 'OK') {
+            return conv.close("Please try again")
+      }
+      conv.data.payload = conv.user.profile.payload
+
       return new Promise((resolve, reject) => {
             db.collection('users').doc(conv.data.payload.sub).set(
                   {
@@ -205,7 +209,7 @@ app.intent('section', (conv, { any }) => {
                   }
             )
                   .then(() => {
-                        conv.ask(`You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to today's timetable"`)
+                        conv.ask(`Thanks for Signing In! You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to College Timetable"`)
                         return respondWithTimetable(conv, resolve)
                   })
                   .catch((err) => {

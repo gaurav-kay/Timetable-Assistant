@@ -67,3 +67,6 @@ node_modules/
 functions/config.js
 functions/test.js
 functions/helpers.js
+
+# Agent
+*.zip
