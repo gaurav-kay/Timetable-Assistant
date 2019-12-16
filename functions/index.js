@@ -12,14 +12,14 @@ const functions = require('firebase-functions')
 const firebase = require('firebase/app')
 const config = require('./config')
 
-const firebaseConfig = config.default.firebaseConfig
+const firebaseConfig = config.firebaseConfig
 firebase.initializeApp(firebaseConfig)
 admin.initializeApp(functions.config().firebase)
 var db = admin.firestore()
 
 const app = dialogflow({
       debug: true,
-      clientId: config.default.clientId
+      clientId: config.clientId
 })
 
 app.intent('Default Welcome Intent', (conv) => {
@@ -27,19 +27,9 @@ app.intent('Default Welcome Intent', (conv) => {
       if (typeof payload === 'undefined') {
             return conv.ask(new SignIn('To get your Timetable'))
       } else {
-            // return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
-            return await respondWithTimetable(conv)
+            return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
       }
 })
-
-async function respondWithTimetable(conv) {
-      const payload = conv.user.profile.payload
-      var userDocSnapshot = await db.collection('users').doc(payload.sub).get()
-      var timetableDocSnapshot = await db.collection('timetables').doc(userDocSnapshot.data().class).get()
-
-      sendResponse(timetableDocSnapshot.data(), conv)
-      return Promise.resolve()
-}
 
 function respondWithTimetable(conv, resolve) {
       const payload = conv.user.profile.payload
@@ -65,45 +55,48 @@ function respondWithTimetable(conv, resolve) {
 
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
-            var timetable, fullDay
+            var timetable, fullDay, periodTimes
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
             const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
             switch (day) {
                   case "mon": timetable = docData.mon.timetable
-                        const periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "tue": timetable = docData.tue.timetable
-                        const periodTimes = "periodTimes" in docData.tue ? docData.tue.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.tue ? docData.tue.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "wed": timetable = docData.wed.timetable
-                        const periodTimes = "periodTimes" in docData.wed ? docData.wed.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.wed ? docData.wed.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "thu": timetable = docData.thu.timetable
-                        const periodTimes = "periodTimes" in docData.thu ? docData.thu.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.thu ? docData.thu.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
                   case "fri": timetable = docData.fri.timetable
-                        const periodTimes = "periodTimes" in docData.fri ? docData.fri.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.fri ? docData.fri.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
                         break
-                  case "sat": timetable = docData.sat.timetable
-                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]  // testing onlyyyyy
+                  case "sat": timetable = "sat" in docData ? docData.sat.timetable : docData.mon.timetable
+                        periodTimes = "periodTimes" in docData.sat ? docData.dat.periodTimes : defaultPeriodTimes
+                        fullDay = "sat" in docData ? dayNames[new Date(currentIndiaTime).getDay()] : "Monday"
                         break
-                  case "sun": timetable = docData.sun.timetable
-                        fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                  case "sun": timetable = docData.mon.timetable
+                        periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
+                        fullDay = "Monday"
                         break
                   default:
                         console.log('default')
                         timetable = docData.mon.timetable
-                        fullDay = docData.mon.day
+                        periodTimes = defaultPeriodTimes
+                        fullDay = "Monday"
             }
 
-            conv.close(new SimpleResponse({
+            conv.ask(new SimpleResponse({
                   text: "Today's time table is",
-                  speech: "test speech, update getSpeech()"  // getSpeech(timetable, currentIndiaTime)
+                  speech: "Today's time table is"  // getSpeech(timetable, currentIndiaTime)
             }))
             return conv.close(new Table({
                   title: `${fullDay}'s classes`,
@@ -120,11 +113,11 @@ function respondWithTimetable(conv, resolve) {
                               header: 'Time'
                         }
                   ],
-                  rows: getRows(timetable),
+                  rows: getRows(timetable, periodTimes),
             }))
             // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
-            function getRows(timetable) {
+            function getRows(timetable, periodTimes) {
                   // TODO: get period times from db too
                   var rowElements = []
 
@@ -222,20 +215,7 @@ app.intent('section', (conv, { any }) => {
 })
 
 exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
-exports.fulfillmentHKG = functions
-      .region('asia-east2').https.onRequest(app)
-
-
-async function f() {
-      var x = await db.collection('users').get()
-      return x
-}
-
-function d() {
-      return "hi"
-}
-
-exports.tests = functions.https.onRequest(d)
+exports.fulfillmentHKG = functions.region('asia-east2').https.onRequest(app)
 // get class from suggestion chips
 
 // o/p from suggestion chip is intent text
