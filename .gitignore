@@ -70,3 +70,7 @@ functions/helpers.js
 
 # Agent
 *.zip
+
+admin/
+
+.idea

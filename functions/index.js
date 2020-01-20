@@ -61,43 +61,54 @@ function respondWithTimetable(conv, resolve) {
 
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
-            var timetable, fullDay, periodTimes
+            var timetable, fullDay, periodTimes, offset
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
             const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
             switch (day) {
                   case "mon": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                        offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         break
                   case "tue": timetable = docData.tue.timetable
                         periodTimes = "periodTimes" in docData.tue ? docData.tue.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                        offset = "offset" in docData.tue ? Number(docData.tue.offset) : 0
                         break
                   case "wed": timetable = docData.wed.timetable
                         periodTimes = "periodTimes" in docData.wed ? docData.wed.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                        offset = "offset" in docData.wed ? Number(docData.wed.offset) : 0
                         break
                   case "thu": timetable = docData.thu.timetable
                         periodTimes = "periodTimes" in docData.thu ? docData.thu.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                        offset = "offset" in docData.thu ? Number(docData.thu.offset) : 0
                         break
                   case "fri": timetable = docData.fri.timetable
                         periodTimes = "periodTimes" in docData.fri ? docData.fri.periodTimes : defaultPeriodTimes
                         fullDay = dayNames[new Date(currentIndiaTime).getDay()]
+                        offset = "offset" in docData.fri ? Number(docData.fri.offset) : 0
                         break
                   case "sat": timetable = "sat" in docData ? docData.sat.timetable : docData.mon.timetable
-                        periodTimes = "periodTimes" in docData.sat ? docData.dat.periodTimes : defaultPeriodTimes
+                        periodTimes = "periodTimes" in docData.sat ? docData.sat.periodTimes : defaultPeriodTimes
                         fullDay = "sat" in docData ? dayNames[new Date(currentIndiaTime).getDay()] : "Monday"
+                        offset = "offset" in docData.sat ? Number(docData.sat.offset) : 0
+                        if (offset === 0) {
+                              offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
+                        }
                         break
                   case "sun": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
                         fullDay = "Monday"
+                        offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         break
                   default:
                         console.log('default')
                         timetable = docData.mon.timetable
                         periodTimes = defaultPeriodTimes
                         fullDay = "Monday"
+                        offset = 0
             }
 
             conv.ask(new SimpleResponse({
@@ -119,18 +130,18 @@ function respondWithTimetable(conv, resolve) {
                               header: 'Time'
                         }
                   ],
-                  rows: getRows(timetable, periodTimes),
+                  rows: getRows(timetable, periodTimes, offset),
             }))
             // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
-            function getRows(timetable, periodTimes) {
+            function getRows(timetable, periodTimes, offset) {
                   // TODO: get period times from db too
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
                   timetable.forEach((period, hourIndex) => {
                         rowElements.push({
-                              cells: [period, periodTimes[hourIndex]],
+                              cells: [period, periodTimes[hourIndex + offset]],
                               dividerAfter: false
                         })
                   })
@@ -182,13 +193,13 @@ app.intent('semester', (conv, { ordinal }) => {
       conv.data.userData.semester = ordinal
 
       conv.ask(`Now, select your class`)
-      return conv.ask(new Suggestions(["A section", "B section", "C section", "D section", "E section"]))
+      return conv.ask(new Suggestions(["A section", "B section", "C section", "D section"]))
 })
 
 app.intent('section', (conv, { any }) => {
       conv.data.userData.section = any
 
-      conv.ask('Thanks! Finally Sign in to use College Timetable')
+      conv.ask('Thanks! Finally, Please Sign in to use College Timetable')
       return conv.ask(new SignIn('To use College Timetable'))
 })
 
@@ -220,6 +231,5 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
 
 exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
 exports.fulfillmentHKG = functions.region('asia-east2').https.onRequest(app)
-// get class from suggestion chips
 
 // o/p from suggestion chip is intent text
