@@ -23,6 +23,11 @@ const app = dialogflow({
       clientId: config.clientId
 })
 
+const branches = ['IS']
+const semesters = ["4th", "6th"]
+const sections = ["A section", "B section", "C section"]
+
+
 app.intent('Default Welcome Intent', (conv) => {
       const payload = conv.user.profile.payload
       if (typeof payload === 'undefined') {
@@ -31,7 +36,7 @@ app.intent('Default Welcome Intent', (conv) => {
             conv.data.userData = {}
             conv.ask('Select your branch')
 
-            return conv.ask(new Suggestions(['IS', 'CS', 'EC', 'EE', 'ME', 'TC', 'EI', 'IEM']))
+            return conv.ask(new Suggestions(branches))
       } else {
             return new Promise((resolve, reject) => respondWithTimetable(conv, resolve))
       }
@@ -63,7 +68,7 @@ function respondWithTimetable(conv, resolve) {
 
             var timetable, fullDay, periodTimes, offset
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-            const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30"]
+            const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30", "4:30 to 5:25"]
             switch (day) {
                   case "mon": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
@@ -113,7 +118,7 @@ function respondWithTimetable(conv, resolve) {
 
             conv.ask(new SimpleResponse({
                   text: "Today's time table is",
-                  speech: "Today's time table is"  // getSpeech(timetable, currentIndiaTime)
+                  speech: "Here's today's timetable"  // getSpeech(timetable, currentIndiaTime)
             }))
             return conv.close(new Table({
                   title: `${fullDay}'s classes`,
@@ -154,6 +159,7 @@ function respondWithTimetable(conv, resolve) {
                         rowElements[3].dividerAfter = true
                   }
 
+                  console.log("TAG", rowElements)
                   return rowElements
             }
             // TODO: update getspeech
@@ -186,14 +192,14 @@ app.intent('branch', (conv, { branch }) => {
       conv.data.userData.branch = branch
 
       conv.ask(`Now, select your semester`)
-      return conv.ask(new Suggestions(["1st", "3rd", "5th", "7th"]))
+      return conv.ask(new Suggestions(semesters))
 })
 
 app.intent('semester', (conv, { ordinal }) => {
       conv.data.userData.semester = ordinal
 
       conv.ask(`Now, select your class`)
-      return conv.ask(new Suggestions(["A section", "B section", "C section", "D section"]))
+      return conv.ask(new Suggestions(sections))
 })
 
 app.intent('section', (conv, { any }) => {
