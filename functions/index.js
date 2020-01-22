@@ -30,6 +30,7 @@ const sections = ["A section", "B section", "C section"]
 
 app.intent('Default Welcome Intent', (conv) => {
       const payload = conv.user.profile.payload
+
       if (typeof payload === 'undefined') {
             conv.ask('Welcome, Since this is your first time, Please complete this 1 time sign in and setup')
 
@@ -45,18 +46,24 @@ app.intent('Default Welcome Intent', (conv) => {
 function respondWithTimetable(conv, resolve) {
       const payload = conv.user.profile.payload
 
+      console.log("PAYLOAD", payload)
+
       db.collection('users').doc(payload.sub).get()
             .then((userDocSnapshot) => {
+                  console.log("USER DOC DATA", userDocSnapshot.data())
+
                   return db.collection('timetables').doc(userDocSnapshot.data().class).get()
             })
             .then((timetableDocSnapshot) => {
+                  console.log("TIMETABLE DOC DATA", timetableDocSnapshot.data())
+
                   sendResponse(timetableDocSnapshot.data(), conv)
-                  console.log('TAG exit send Response')
                   resolve()
-                  console.log('TAG resolved')
                   return null
             })
             .catch((err) => {
+                  console.log("ERR FIRESTORE GET", err)
+
                   throw err
             })
 
@@ -64,6 +71,7 @@ function respondWithTimetable(conv, resolve) {
             let currentIndiaTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
             let day = new Date(currentIndiaTime).toString().split(' ')[0].toLowerCase()
 
+            console.log("DAY", day)
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
             var timetable, fullDay, periodTimes, offset
@@ -109,12 +117,14 @@ function respondWithTimetable(conv, resolve) {
                         offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         break
                   default:
-                        console.log('default')
+                        console.log('DEFAULT SWITCH')
                         timetable = docData.mon.timetable
                         periodTimes = defaultPeriodTimes
                         fullDay = "Monday"
                         offset = 0
             }
+
+            console.log("SWITCH OP", timetable, periodTimes, fullDay, offset)
 
             conv.ask(new SimpleResponse({
                   text: "Today's time table is",
@@ -159,7 +169,7 @@ function respondWithTimetable(conv, resolve) {
                         rowElements[3].dividerAfter = true
                   }
 
-                  console.log("TAG", rowElements)
+                  console.log("ROW ELEMENTS", rowElements)
                   return rowElements
             }
             // TODO: update getspeech
@@ -216,6 +226,13 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
       conv.data.payload = conv.user.profile.payload
 
       return new Promise((resolve, reject) => {
+            try {
+                  console.log("USERDATA", conv.data.userData)
+                  console.log("SUB AFTER SIGN IN", conv.user.profile.payload.sub)
+            } catch (err) {
+                  console.log("USERDATA ERR", err)
+            }
+
             db.collection('users').doc(conv.data.payload.sub).set(
                   {
                         "branch": conv.data.userData.branch,
@@ -226,6 +243,8 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
                   }
             )
                   .then(() => {
+                        console.log("WRITE SUCCESSFUL")
+
                         conv.ask(`Thanks for Signing In! You're all set up!, Here's today's timetable, Invoke this action by saying "Talk to College Timetable"`)
                         return respondWithTimetable(conv, resolve)
                   })
