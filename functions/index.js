@@ -24,8 +24,9 @@ const app = dialogflow({
 })
 
 const branches = ['IS']
-const semesters = ["4th", "6th"]
+const semesters = ["2nd", "4th", "6th"]
 const sections = ["A section", "B section", "C section"]
+const firstYearSections = ["A section", "B section", "C section", "D section", "E section", "F section", "G section"]
 
 
 app.intent('Default Welcome Intent', (conv) => {
@@ -74,9 +75,9 @@ function respondWithTimetable(conv, resolve) {
             console.log("DAY", day)
             console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
 
-            var timetable, fullDay, periodTimes, offset
+            var timetable, fullDay, periodTimes, offset, holidayStatus = false
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-            const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30", "4:30 to 5:25"]
+            const defaultPeriodTimes = ["9:00 to 9:55", "9:55 to 10:50", "11:05 to 12:00", "12:00 to 12:55", "1:45 to 2:40", "2:40 to 3:35", "3:35 to 4:30", "After class", "After class"]
             switch (day) {
                   case "mon": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
@@ -107,6 +108,7 @@ function respondWithTimetable(conv, resolve) {
                         periodTimes = "periodTimes" in docData.sat ? docData.sat.periodTimes : defaultPeriodTimes
                         fullDay = "sat" in docData ? dayNames[new Date(currentIndiaTime).getDay()] : "Monday"
                         offset = "offset" in docData.sat ? Number(docData.sat.offset) : 0
+                        holidayStatus = "sat" in docData ? false : true
                         if (offset === 0) {
                               offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         }
@@ -114,10 +116,11 @@ function respondWithTimetable(conv, resolve) {
                   case "sun": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
                         fullDay = "Monday"
+                        holidayStatus = true
                         offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         break
                   default:
-                        console.log('DEFAULT SWITCH')
+                        console.log('DEFAULT SWITCH', day)
                         timetable = docData.mon.timetable
                         periodTimes = defaultPeriodTimes
                         fullDay = "Monday"
@@ -127,8 +130,8 @@ function respondWithTimetable(conv, resolve) {
             console.log("SWITCH OP", timetable, periodTimes, fullDay, offset)
 
             conv.ask(new SimpleResponse({
-                  text: "Today's time table is",
-                  speech: "Here's today's timetable"  // getSpeech(timetable, currentIndiaTime)
+                  text: holidayStatus ? "No classes today, here's Monday's timetable" : "Today's time table is",
+                  speech: holidayStatus ? "Here's Monday's timetable" : "Here's today's timetable"  // getSpeech(timetable, currentIndiaTime)
             }))
             return conv.close(new Table({
                   title: `${fullDay}'s classes`,
@@ -209,6 +212,9 @@ app.intent('semester', (conv, { ordinal }) => {
       conv.data.userData.semester = ordinal
 
       conv.ask(`Now, select your class`)
+      if (ordinal === 2 || ordinal === 1) {
+            return conv.ask(new Suggestions(firstYearSections))
+      }
       return conv.ask(new Suggestions(sections))
 })
 
