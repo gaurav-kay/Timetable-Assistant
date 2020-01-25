@@ -73,7 +73,7 @@ function respondWithTimetable(conv, resolve) {
             let day = new Date(currentIndiaTime).toString().split(' ')[0].toLowerCase()
 
             console.log("DAY", day)
-            console.log(`TAG ${docData}`)  // docdata[day] must contain timetable and day in full form
+            console.log(`TAG`, docData)  // docdata[day] must contain timetable and day in full form
 
             var timetable, fullDay, periodTimes, offset, holidayStatus = false
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -105,9 +105,14 @@ function respondWithTimetable(conv, resolve) {
                         offset = "offset" in docData.fri ? Number(docData.fri.offset) : 0
                         break
                   case "sat": timetable = "sat" in docData ? docData.sat.timetable : docData.mon.timetable
-                        periodTimes = "periodTimes" in docData.sat ? docData.sat.periodTimes : defaultPeriodTimes
+                        if ("sat" in docData) {
+                              periodTimes = docData.sat.periodTimes
+                              offset = Number(docData.sat.offset)
+                        } else {
+                              periodTimes = defaultPeriodTimes
+                              offset = 0
+                        }
                         fullDay = "sat" in docData ? dayNames[new Date(currentIndiaTime).getDay()] : "Monday"
-                        offset = "offset" in docData.sat ? Number(docData.sat.offset) : 0
                         holidayStatus = "sat" in docData ? false : true
                         if (offset === 0) {
                               offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
@@ -127,7 +132,7 @@ function respondWithTimetable(conv, resolve) {
                         offset = 0
             }
 
-            console.log("SWITCH OP", timetable, periodTimes, fullDay, offset)
+            console.log("SWITCH OP", timetable, periodTimes, fullDay, offset, holidayStatus)
 
             conv.ask(new SimpleResponse({
                   text: holidayStatus ? "No classes today, here's Monday's timetable" : "Today's time table is",
@@ -202,14 +207,14 @@ function respondWithTimetable(conv, resolve) {
 }
 
 app.intent('branch', (conv, { branch }) => {
-      conv.data.userData.branch = branch
+      conv.data.userData.branch = branch.toUpperCase()
 
       conv.ask(`Now, select your semester`)
       return conv.ask(new Suggestions(semesters))
 })
 
 app.intent('semester', (conv, { ordinal }) => {
-      conv.data.userData.semester = ordinal
+      conv.data.userData.semester = ordinal.toUpperCase()
 
       conv.ask(`Now, select your class`)
       if (ordinal === 2 || ordinal === 1) {
@@ -219,7 +224,7 @@ app.intent('semester', (conv, { ordinal }) => {
 })
 
 app.intent('section', (conv, { any }) => {
-      conv.data.userData.section = any
+      conv.data.userData.section = any.toUpperCase()
 
       conv.ask('Thanks! Finally, Please Sign in to use College Timetable')
       return conv.ask(new SignIn('To use College Timetable'))
