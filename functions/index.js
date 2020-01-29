@@ -49,16 +49,24 @@ function respondWithTimetable(conv, resolve) {
 
       console.log("PAYLOAD", payload)
 
+      var userDocSnapshotTemp
       db.collection('users').doc(payload.sub).get()
             .then((userDocSnapshot) => {
+                  userDocSnapshotTemp = userDocSnapshot
                   console.log("USER DOC DATA", userDocSnapshot.data())
 
                   return db.collection('timetables').doc(userDocSnapshot.data().class).get()
             })
             .then((timetableDocSnapshot) => {
-                  console.log("TIMETABLE DOC DATA", timetableDocSnapshot.data())
+                  if (!timetableDocSnapshot.exists) {
+                        console.log("NO TIMETABLE", userDocSnapshotTemp.data().class)
 
-                  sendResponse(timetableDocSnapshot.data(), conv)
+                        conv.close("We don't have your class's timetable yet, Please contact me to help add the timetables!")
+                  } else {
+                        console.log("TIMETABLE DOC DATA", timetableDocSnapshot.data())
+
+                        sendResponse(timetableDocSnapshot.data(), conv)
+                  }
                   resolve()
                   return null
             })
@@ -69,11 +77,23 @@ function respondWithTimetable(conv, resolve) {
             })
 
       function sendResponse(docData, conv) {
+            var nextDayDisplayed = false
+
             let currentIndiaTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
             let day = new Date(currentIndiaTime).toString().split(' ')[0].toLowerCase()
 
+            // if (new Date(currentIndiaTime).getHours() >= 18) {  // 6 PM 
+            //       nextDayDisplayed = true
+
+            //       var nextDayDate = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+            //       nextDayDate = new Date(nextDayDate).setDate(new Date(currentIndiaTime).getDate() + 1)
+
+            //       day = new Date(nextDayDate).toString().split(' ')[0].toLowerCase()
+            // }
+
+            console.log("NEXT DAY DISPLAYED", nextDayDisplayed)
             console.log("DAY", day)
-            console.log(`TAG`, docData)  // docdata[day] must contain timetable and day in full form
+            console.log(`TAG`, docData)
 
             var timetable, fullDay, periodTimes, offset, holidayStatus = false
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -106,17 +126,14 @@ function respondWithTimetable(conv, resolve) {
                         break
                   case "sat": timetable = "sat" in docData ? docData.sat.timetable : docData.mon.timetable
                         if ("sat" in docData) {
-                              periodTimes = docData.sat.periodTimes
-                              offset = Number(docData.sat.offset)
+                              periodTimes = "periodTimes" in docData.sat ? docData.sat.periodTimes : defaultPeriodTimes
+                              offset = "offset" in docData.sat ? Number(docData.sat.offset) : 0
                         } else {
-                              periodTimes = defaultPeriodTimes
-                              offset = 0
+                              periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
+                              offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
                         }
                         fullDay = "sat" in docData ? dayNames[new Date(currentIndiaTime).getDay()] : "Monday"
                         holidayStatus = "sat" in docData ? false : true
-                        if (offset === 0) {
-                              offset = "offset" in docData.mon ? Number(docData.mon.offset) : 0
-                        }
                         break
                   case "sun": timetable = docData.mon.timetable
                         periodTimes = "periodTimes" in docData.mon ? docData.mon.periodTimes : defaultPeriodTimes
@@ -134,13 +151,20 @@ function respondWithTimetable(conv, resolve) {
 
             console.log("SWITCH OP", timetable, periodTimes, fullDay, offset, holidayStatus)
 
-            conv.ask(new SimpleResponse({
-                  text: holidayStatus ? "No classes today, here's Monday's timetable" : "Today's time table is",
-                  speech: holidayStatus ? "Here's Monday's timetable" : "Here's today's timetable"  // getSpeech(timetable, currentIndiaTime)
-            }))
+            if (nextDayDisplayed) {
+                  conv.ask(new SimpleResponse({
+                        text: holidayStatus ? "No classes tomorrow, here's Monday's timetable" : "Tomorrow's time table is",
+                        speech: holidayStatus ? "Here's Monday's timetable" : "Here's tomorrow's timetable"
+                  }))
+            } else {
+                  conv.ask(new SimpleResponse({
+                        text: holidayStatus ? "No classes today, here's Monday's timetable" : "Today's time table is",
+                        speech: holidayStatus ? "Here's Monday's timetable" : "Here's today's timetable"  // getSpeech(timetable, currentIndiaTime)
+                  }))
+            }
             return conv.close(new Table({
                   title: `${fullDay}'s classes`,
-                  subtitle: `Classes you have today`,
+                  subtitle: nextDayDisplayed ? "Classes you have tomorrow" : `Classes you have today`,
                   image: new Image({
                         url: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5a/Ramaiah_Institutions_Logo.png/220px-Ramaiah_Institutions_Logo.png',
                         alt: 'Ramaiah Institute of Technology logo'
@@ -155,10 +179,9 @@ function respondWithTimetable(conv, resolve) {
                   ],
                   rows: getRows(timetable, periodTimes, offset),
             }))
-            // return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
+            // TODO: Update settings using return conv.close(new Suggestions(['Change Class'], ['Send Feedback']))
 
             function getRows(timetable, periodTimes, offset) {
-                  // TODO: get period times from db too
                   var rowElements = []
 
                   // by format specified in https://developers.google.com/actions/assistant/responses#table_cards
@@ -217,7 +240,7 @@ app.intent('semester', (conv, { ordinal }) => {
       conv.data.userData.semester = ordinal.toUpperCase()
 
       conv.ask(`Now, select your class`)
-      if (ordinal === 2 || ordinal === 1) {
+      if (ordinal === "2" || ordinal === "1") {
             return conv.ask(new Suggestions(firstYearSections))
       }
       return conv.ask(new Suggestions(sections))
@@ -262,10 +285,8 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
                   .catch((err) => {
                         throw err
                   })
-      })  // had to return a promise!
+      })
 })
 
-exports.fulfillmentUS = functions.https.onRequest(app)  // change to us-central1 (location of db) !!!! sign in errors cause of thisss
+exports.fulfillmentUS = functions.https.onRequest(app)
 exports.fulfillmentHKG = functions.region('asia-east2').https.onRequest(app)
-
-// o/p from suggestion chip is intent text
