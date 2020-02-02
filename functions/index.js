@@ -57,7 +57,7 @@ function respondWithTimetable(conv, resolve) {
 
                   return db.collection('timetables').doc(userDocSnapshot.data().class).get()
             })
-            .then((timetableDocSnapshot) => {
+            .then(async (timetableDocSnapshot) => {
                   if (!timetableDocSnapshot.exists) {
                         console.log("NO TIMETABLE", userDocSnapshotTemp.data().class)
 
@@ -67,6 +67,9 @@ function respondWithTimetable(conv, resolve) {
 
                         sendResponse(timetableDocSnapshot.data(), conv)
                   }
+
+                  await updateCount(payload.sub, userDocSnapshotTemp)
+
                   resolve()
                   return null
             })
@@ -273,7 +276,8 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
                         "semester": conv.data.userData.semester,
                         "id": conv.data.payload.sub,
                         "class": `${conv.data.userData.branch} ${conv.data.userData.semester} ${conv.data.userData.section}`,
-                        "payload": conv.data.payload
+                        "payload": conv.data.payload,
+                        "count": 0
                   }
             )
                   .then(() => {
@@ -287,6 +291,12 @@ app.intent('ask_for_sign_in_confirmation', (conv, params, signin) => {
                   })
       })
 })
+
+async function updateCount(sub, userDocSnapshot) {
+      console.log('COUNT UPDATED', count)
+
+      await db.collection('users').doc(sub).update({ count: (Number(userDocSnapshot.data().count) + 1) })
+}
 
 exports.fulfillmentUS = functions.https.onRequest(app)
 exports.fulfillmentHKG = functions.region('asia-east2').https.onRequest(app)
